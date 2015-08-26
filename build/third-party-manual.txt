@@ -1,0 +1,4 @@
+
+    Apache License 2.0 [apache-20.txt]:
+
+        * Apache Hadoop, http://hadoop.apache.org
