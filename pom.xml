@@ -124,6 +124,7 @@
               <excludes>
                 <exclude>third-party-licenses/**</exclude>
                 <exclude>LICENSE</exclude>
+                <exclude>**/*.md.html</exclude>
                 <exclude>README.md</exclude>
                 <exclude>THIRD-PARTY.txt</exclude>
                 <exclude>build/third-party-template.ftl</exclude>

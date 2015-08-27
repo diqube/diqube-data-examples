@@ -27,12 +27,19 @@ import java.util.function.Function;
 import org.diqube.util.Pair;
 
 /**
+ * Helper class to maintain changes to the PUMS input files - provide better column names and meaningful values.
  *
  * @author Bastian Gloeckle
  */
 public class PumsAdjust {
   private static final Map<String, Pair<String, Function<String, Object>>> colInfo = new HashMap<>();
 
+  /**
+   * Return a Function which can change the value of a specific column to a meaningful value.
+   * 
+   * @param colName
+   *          is the original colname, not the one returned by {@link #getNiceColName(String)}.
+   */
   public static Function<String, Object> getAdjustFunc(String colName) {
     try {
       Function<String, Object> res = colInfo.get(colName).getRight();
@@ -45,6 +52,9 @@ public class PumsAdjust {
     }
   }
 
+  /**
+   * Return a readable column name for the given original column name.
+   */
   public static String getNiceColName(String origColName) {
     try {
       return colInfo.get(origColName).getLeft();

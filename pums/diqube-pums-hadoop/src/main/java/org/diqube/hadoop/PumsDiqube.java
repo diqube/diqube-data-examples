@@ -44,6 +44,10 @@ import org.diqube.hadoop.DiqubeRow.DiqubeData;
 import com.opencsv.CSVParser;
 
 /**
+ * A Map/Reduce Job which reads input ACS PUMS files (set from 2005-2009) and transforms them to .diqube file(s) whih
+ * contain that data nicely readable and loadable by diqube-server.
+ * 
+ * See pums/README.md for details.
  *
  * @author Bastian Gloeckle
  */
@@ -181,7 +185,7 @@ public class PumsDiqube {
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf, "Pums Diqube");
+    Job job = Job.getInstance(conf, "Pums diqube");
     job.setJarByClass(PumsDiqube.class);
 
     job.setMapperClass(ToDiqubeRowMapper.class);
