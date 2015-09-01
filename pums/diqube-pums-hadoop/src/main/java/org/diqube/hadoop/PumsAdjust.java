@@ -24,7 +24,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.diqube.data.ColumnType;
 import org.diqube.util.Pair;
+import org.diqube.util.Triple;
 
 /**
  * Helper class to maintain changes to the PUMS input files - provide better column names and meaningful values.
@@ -32,7 +34,7 @@ import org.diqube.util.Pair;
  * @author Bastian Gloeckle
  */
 public class PumsAdjust {
-  private static final Map<String, Pair<String, Function<String, Object>>> colInfo = new HashMap<>();
+  private static final Map<String, Triple<String, ColumnType, Function<String, Object>>> colInfo = new HashMap<>();
 
   /**
    * Return a Function which can change the value of a specific column to a meaningful value.
@@ -58,6 +60,18 @@ public class PumsAdjust {
   public static String getNiceColName(String origColName) {
     try {
       return colInfo.get(origColName).getLeft();
+    } catch (NullPointerException e) {
+      System.err.println("No colinfo available for col " + origColName);
+      throw e;
+    }
+  }
+
+  /**
+   * Return a readable column name for the given original column name.
+   */
+  public static ColumnType getColType(String origColName) {
+    try {
+      return colInfo.get(origColName).getMiddle();
     } catch (NullPointerException e) {
       System.err.println("No colinfo available for col " + origColName);
       throw e;
@@ -126,23 +140,23 @@ public class PumsAdjust {
 
   static {
     colInfo.put("ACR",
-        new Pair<>("lot_size",
+        new Triple<>("lot_size", ColumnType.STRING,
             new ReplaceFn( //
                 R("b", "n/a"), R("1", "House on less than one acre"), R("2", "House on one to less than ten acres"),
                 R("3", "House on ten or more acres"))));
-    colInfo.put("ADJHSG", new Pair<>("adjust_housing", longFn()));
-    colInfo.put("ADJINC", new Pair<>("adjust_income", longFn()));
-    colInfo.put("AGEP", new Pair<>("age", longFn()));
+    colInfo.put("ADJHSG", new Triple<>("adjust_housing", ColumnType.LONG, longFn()));
+    colInfo.put("ADJINC", new Triple<>("adjust_income", ColumnType.LONG, longFn()));
+    colInfo.put("AGEP", new Triple<>("age", ColumnType.LONG, longFn()));
     colInfo.put("AGS",
-        new Pair<>("sales_agriculture_dollar_up_to",
+        new Triple<>("sales_agriculture_dollar_up_to", ColumnType.LONG,
             longSpecial(//
                 R("b", -1L), R("1", 0L), R("2", 999L), R("3", 2499L), R("4", 4999L), R("5", 9999L),
                 R("6", Long.MAX_VALUE))));
-    colInfo.put("ANC", new Pair<>("ancestry_recode", new ReplaceFn( //
+    colInfo.put("ANC", new Triple<>("ancestry_recode", ColumnType.STRING, new ReplaceFn( //
         R("1", "Single"), R("2", "Multiple"), R("3", "Unclassified"), R("4", "Not reported"))));
     // TODO repeated!
     colInfo.put("ANC1P",
-        new Pair<>("ancestry_1",
+        new Triple<>("ancestry_1", ColumnType.STRING,
             new ReplaceFn(R("001", "Alsatian"), R("003", "Austrian"),
                 R("005", "Basque"), R("008", "Belgian"), R("009", "Flemish"), R("011", "British"), R("012",
                     "British Isles"),
@@ -201,52 +215,52 @@ public class PumsAdjust {
                 R("937", "Cajun"), R("939", "American or United States"), R("983", "Texas"), R("994", "North American"),
                 R("995", "Mixture"), R("996", "Uncodable entries"), R("997", "Other groups"),
                 R("998", "Other responses"), R("999", "Not reported"))));
-    colInfo.put("ANC2P", new Pair<>("ancestry_2", colInfo.get("ANC1P").getRight()));
-    colInfo.put("BDS", new Pair<>("bedrooms", longSpecial(R("b", -1L))));
+    colInfo.put("ANC2P", new Triple<>("ancestry_2", ColumnType.STRING, colInfo.get("ANC1P").getRight()));
+    colInfo.put("BDS", new Triple<>("bedrooms", ColumnType.LONG, longSpecial(R("b", -1L))));
     colInfo.put("BLD",
-        new Pair<>("building",
+        new Triple<>("building", ColumnType.STRING,
             new ReplaceFn(//
                 R("bb", "n/a"), R("01", "Mobile home or trailer"), R("02", "One-family house detached"),
                 R("03", "One-family house attached"), R("04", "2 Apartments"), R("05", "3-4 Apartments"),
                 R("06", "5-9 Apartments"), R("07", "10-19 Apartments"), R("08", "20-49 Apartments"),
                 R("09", "50 or more apartments"), R("10", "Boat, RV, van, etc."))));
-    colInfo.put("BUS", new Pair<>("business_or_medical_on_property", longSpecial(//
+    colInfo.put("BUS", new Triple<>("business_or_medical_on_property", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("CIT",
-        new Pair<>("citizenship_status",
+        new Triple<>("citizenship_status", ColumnType.STRING,
             new ReplaceFn( //
                 R("1", "Born in the U.S."),
                 R("2", "Born in Puerto Rico, Guam, the U.S. Virgin Islands, or the Northern Marianas"),
                 R("3", "Born abroad of American parent(s)"), R("4", "U.S. citizen by naturalization"),
                 R("5", "Not a citizen of the U.S."))));
-    colInfo.put("CONP", new Pair<>("condo_fee", longSpecial(R("bbbb", -1L))));
-    colInfo.put("COW", new Pair<>("class_of_worker", new ReplaceFn(//
+    colInfo.put("CONP", new Triple<>("condo_fee", ColumnType.LONG, longSpecial(R("bbbb", -1L))));
+    colInfo.put("COW", new Triple<>("class_of_worker", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "Employee of a private for-profit company"),
         R("2", "Employee of a private not-for-profit"), R("3", "Local government employee"),
         R("4", "Local government employee"), R("5", "Federal government employee"),
         R("6", "Self-employed in own not incorporated business"), R("7", "Self-employed in own incorporated business"),
         R("8", "Working without pay in family business or farm"), R("9", "Unemployed and last worked 5 years ago"))));
     colInfo.put("DECADE",
-        new Pair<>("decade_of_entry_in_us",
+        new Triple<>("decade_of_entry_in_us", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "born in US"), R("1", "Before 1950"), R("2", "1950 - 1959"), R("3", "1960 - 1969"),
                 R("4", "1970 - 1979"), R("5", "1980 - 1989"), R("6", "1990 - 1999"), R("7", "2000 - 2009"))));
     colInfo.put("DIVISION",
-        new Pair<>("division_code",
+        new Triple<>("division_code", ColumnType.STRING,
             new ReplaceFn(//
                 R("0", "Puerto Rico"), R("1", "New England (Northeast region)"),
                 R("2", "Middle Atlantic (Northeast region)"), R("3", "East North Central (Midwest region)"),
                 R("4", "West North Central (Midwest region)"), R("5", "South Atlantic (South region)"),
                 R("6", "East South Central (South region)"), R("7", "West South Central (South Region)"),
                 R("8", "Mountain (West region)"), R("9", "Pacific (West region)"))));
-    colInfo.put("DRIVESP", new Pair<>("number_of_vehicles_percentage", new ReplaceFn(//
+    colInfo.put("DRIVESP", new Triple<>("number_of_vehicles_percentage", ColumnType.DOUBLE, new ReplaceFn(//
         R("", -1.), R("b", -1.), R("1", 1.), R("2", .5), R("3", .333), R("4", .25), R("5", .2), R("6", .143))));
-    colInfo.put("ELEP", new Pair<>("electricity_cost_monthly", longSpecial(//
+    colInfo.put("ELEP", new Triple<>("electricity_cost_monthly", ColumnType.LONG, longSpecial(//
         R("bbb", -3L), R("001", -2L), R("002", -1L))));
-    colInfo.put("ENG", new Pair<>("english_ability", new ReplaceFn(//
+    colInfo.put("ENG", new Triple<>("english_ability", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "Very well"), R("2", "Well"), R("3", "Not well"), R("4", "Not at all"))));
     colInfo.put("ESP",
-        new Pair<>("employment_status_parents",
+        new Triple<>("employment_status_parents", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Both parents in labor force"), R("2", "Father only in labor force"),
                 R("3", "Mother only in labor force"), R("4", "Neither parent in labor force"),
@@ -255,28 +269,28 @@ public class PumsAdjust {
                 R("7", "Mother in the labor force (one parent only)"),
                 R("8", "Mother not in labor force (one parent only)"))));
     colInfo.put("ESR",
-        new Pair<>("employment_status_recode",
+        new Triple<>("employment_status_recode", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Civilian employed, at work"),
                 R("2", "Civilian employed, with a job but not at work"), R("3", "Unemployed"),
                 R("4", "Armed forces, at work"), R("5", "Armed forces, with a job but not at work"),
                 R("6", "Not in labor force"))));
-    colInfo.put("FACRP", new Pair<>("lot_size_allocation_flag", bool()));
-    colInfo.put("FAGEP", new Pair<>("age_flag", bool()));
-    colInfo.put("FAGSP", new Pair<>("saled_agriculture_flag", bool()));
-    colInfo.put("FANCP", new Pair<>("ancestry_flag", bool()));
-    colInfo.put("FBDSP", new Pair<>("bedrooms_flag", bool()));
-    colInfo.put("FBLDP", new Pair<>("building_flag", bool()));
-    colInfo.put("FBUSP", new Pair<>("business_or_medical_on_property_flag", bool()));
-    colInfo.put("FCITP", new Pair<>("citizenship_flag", bool()));
-    colInfo.put("FCONP", new Pair<>("condominium_fee_flag", bool()));
-    colInfo.put("FCOWP", new Pair<>("class_of_worker_flag", bool()));
-    colInfo.put("FELEP", new Pair<>("electricity_cost_flag", bool()));
-    colInfo.put("FENGP", new Pair<>("english_ability_flag", bool()));
-    colInfo.put("FER", new Pair<>("children_born_last_12_months", longSpecial(//
+    colInfo.put("FACRP", new Triple<>("lot_size_allocation_flag", ColumnType.LONG, bool()));
+    colInfo.put("FAGEP", new Triple<>("age_flag", ColumnType.LONG, bool()));
+    colInfo.put("FAGSP", new Triple<>("saled_agriculture_flag", ColumnType.LONG, bool()));
+    colInfo.put("FANCP", new Triple<>("ancestry_flag", ColumnType.LONG, bool()));
+    colInfo.put("FBDSP", new Triple<>("bedrooms_flag", ColumnType.LONG, bool()));
+    colInfo.put("FBLDP", new Triple<>("building_flag", ColumnType.LONG, bool()));
+    colInfo.put("FBUSP", new Triple<>("business_or_medical_on_property_flag", ColumnType.LONG, bool()));
+    colInfo.put("FCITP", new Triple<>("citizenship_flag", ColumnType.LONG, bool()));
+    colInfo.put("FCONP", new Triple<>("condominium_fee_flag", ColumnType.LONG, bool()));
+    colInfo.put("FCOWP", new Triple<>("class_of_worker_flag", ColumnType.LONG, bool()));
+    colInfo.put("FELEP", new Triple<>("electricity_cost_flag", ColumnType.LONG, bool()));
+    colInfo.put("FENGP", new Triple<>("english_ability_flag", ColumnType.LONG, bool()));
+    colInfo.put("FER", new Triple<>("children_born_last_12_months", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("FES",
-        new Pair<>("family_type_and_employment_status",
+        new Triple<>("family_type_and_employment_status", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Married-couple family: Husband and wife in LF"),
                 R("2", "Married-couple family: Husband in labor force, wife not in LF"),
@@ -286,120 +300,120 @@ public class PumsAdjust {
                 R("6", "Other family: Male householder, no wife present, not in LF"),
                 R("7", "Other family: Female householder, no husband present, in LF"),
                 R("8", "Other family: Female householder, no husband present, not in LF"))));
-    colInfo.put("FESRP", new Pair<>("employment_status_recode_flag", bool()));
-    colInfo.put("FFERP", new Pair<>("children_born_last_12_months_flag", bool()));
-    colInfo.put("FFSP", new Pair<>("yearly_food_stamp_flag", bool()));
-    colInfo.put("FFULP", new Pair<>("fuel_cost_yearly_flag", bool()));
-    colInfo.put("FGASP", new Pair<>("gas_monthly_flag", bool()));
-    colInfo.put("FGCLP", new Pair<>("grandchildren_living_in_house_flag", bool()));
-    colInfo.put("FGCMP", new Pair<>("months_responsible_for_grandchildren_flag", bool()));
-    colInfo.put("FGCRP", new Pair<>("responsible_for_grandchildren_flag", bool()));
-    colInfo.put("FHFLP", new Pair<>("house_fuel_flag", bool()));
-    colInfo.put("FHISP", new Pair<>("detailed_hispanic_origin_flag", bool()));
-    colInfo.put("FINCP", new Pair<>("family_income_12_months", longSpecial(//
+    colInfo.put("FESRP", new Triple<>("employment_status_recode_flag", ColumnType.LONG, bool()));
+    colInfo.put("FFERP", new Triple<>("children_born_last_12_months_flag", ColumnType.LONG, bool()));
+    colInfo.put("FFSP", new Triple<>("yearly_food_stamp_flag", ColumnType.LONG, bool()));
+    colInfo.put("FFULP", new Triple<>("fuel_cost_yearly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FGASP", new Triple<>("gas_monthly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FGCLP", new Triple<>("grandchildren_living_in_house_flag", ColumnType.LONG, bool()));
+    colInfo.put("FGCMP", new Triple<>("months_responsible_for_grandchildren_flag", ColumnType.LONG, bool()));
+    colInfo.put("FGCRP", new Triple<>("responsible_for_grandchildren_flag", ColumnType.LONG, bool()));
+    colInfo.put("FHFLP", new Triple<>("house_fuel_flag", ColumnType.LONG, bool()));
+    colInfo.put("FHISP", new Triple<>("detailed_hispanic_origin_flag", ColumnType.LONG, bool()));
+    colInfo.put("FINCP", new Triple<>("family_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbbbb", 0L))));
-    colInfo.put("FINDP", new Pair<>("industry_flag", bool()));
-    colInfo.put("FINSP", new Pair<>("fire_hazard_flood_insurance_yearly_flag", bool()));
-    colInfo.put("FINTP", new Pair<>("interest_dividend_net_rental_income_flag", bool()));
-    colInfo.put("FJWDP", new Pair<>("time_departure_to_work_flag", bool()));
-    colInfo.put("FJWMNP", new Pair<>("travel_time_to_work_flag", bool()));
-    colInfo.put("FJWRIP", new Pair<>("vehicle_occupancy_flag", bool()));
-    colInfo.put("FJWTRP", new Pair<>("transportation_to_work_flag", bool()));
-    colInfo.put("FKITP", new Pair<>("complete_kitchen_flag", bool()));
-    colInfo.put("FLANP", new Pair<>("language_at_home_flag", bool()));
-    colInfo.put("FLANXP", new Pair<>("language_other_than_english_flag", bool()));
-    colInfo.put("FMARP", new Pair<>("marital_status_flag", bool()));
-    colInfo.put("FMHP", new Pair<>("mobile_home_cost_yearly_flag", bool()));
-    colInfo.put("FMIGP", new Pair<>("mobility_status_flag", bool()));
-    colInfo.put("FMIGSP", new Pair<>("migration_state_flag", bool()));
-    colInfo.put("FMILPP", new Pair<>("military_periods_flag", bool()));
-    colInfo.put("FMILSP", new Pair<>("military_service_flag", bool()));
-    colInfo.put("FMRGIP", new Pair<>("first_mortgage_includes_insurance_flag", bool()));
-    colInfo.put("FMRGP", new Pair<>("first_mortgage_payment_flag", bool()));
-    colInfo.put("FMRGTP", new Pair<>("first_mortgage_includes_taxes_flag", bool()));
-    colInfo.put("FMRGXP", new Pair<>("first_mortgage_status_flag", bool()));
-    colInfo.put("FMVP", new Pair<>("when_moved_in_flag", bool()));
-    colInfo.put("FOCCP", new Pair<>("occupation_flag", bool()));
-    colInfo.put("FOIP", new Pair<>("other_income_flag", bool()));
-    colInfo.put("FPAP", new Pair<>("public_assistance_income_flag", bool()));
+    colInfo.put("FINDP", new Triple<>("industry_flag", ColumnType.LONG, bool()));
+    colInfo.put("FINSP", new Triple<>("fire_hazard_flood_insurance_yearly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FINTP", new Triple<>("interest_dividend_net_rental_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FJWDP", new Triple<>("time_departure_to_work_flag", ColumnType.LONG, bool()));
+    colInfo.put("FJWMNP", new Triple<>("travel_time_to_work_flag", ColumnType.LONG, bool()));
+    colInfo.put("FJWRIP", new Triple<>("vehicle_occupancy_flag", ColumnType.LONG, bool()));
+    colInfo.put("FJWTRP", new Triple<>("transportation_to_work_flag", ColumnType.LONG, bool()));
+    colInfo.put("FKITP", new Triple<>("complete_kitchen_flag", ColumnType.LONG, bool()));
+    colInfo.put("FLANP", new Triple<>("language_at_home_flag", ColumnType.LONG, bool()));
+    colInfo.put("FLANXP", new Triple<>("language_other_than_english_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMARP", new Triple<>("marital_status_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMHP", new Triple<>("mobile_home_cost_yearly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMIGP", new Triple<>("mobility_status_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMIGSP", new Triple<>("migration_state_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMILPP", new Triple<>("military_periods_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMILSP", new Triple<>("military_service_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMRGIP", new Triple<>("first_mortgage_includes_insurance_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMRGP", new Triple<>("first_mortgage_payment_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMRGTP", new Triple<>("first_mortgage_includes_taxes_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMRGXP", new Triple<>("first_mortgage_status_flag", ColumnType.LONG, bool()));
+    colInfo.put("FMVP", new Triple<>("when_moved_in_flag", ColumnType.LONG, bool()));
+    colInfo.put("FOCCP", new Triple<>("occupation_flag", ColumnType.LONG, bool()));
+    colInfo.put("FOIP", new Triple<>("other_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FPAP", new Triple<>("public_assistance_income_flag", ColumnType.LONG, bool()));
     colInfo.put("FPARC",
-        new Pair<>("family_presence_and_age_of_related_children",
+        new Triple<>("family_presence_and_age_of_related_children", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "With related children under 5 years only"),
                 R("2", "With related children 5 to 17 years only"),
                 R("3", "With related children under 5 years and 5 to 17 years"), R("4", "No related children"))));
-    colInfo.put("FPLMP", new Pair<>("complete_plumbing_flag", bool()));
-    colInfo.put("FPOBP", new Pair<>("place_of_birth_flag", bool()));
-    colInfo.put("FPOWSP", new Pair<>("palce_of_work_state_flag", bool()));
-    colInfo.put("FRACP", new Pair<>("detailed_race_flag", bool()));
-    colInfo.put("FRELP", new Pair<>("relationship_flag", bool()));
-    colInfo.put("FRETP", new Pair<>("retirement_income_flag", bool()));
-    colInfo.put("FRMSP", new Pair<>("rooms_allocation_flag", bool()));
-    colInfo.put("FRNTMP", new Pair<>("rent_includes_meals_flag", bool()));
-    colInfo.put("FRNTP", new Pair<>("rent_monthly_flag", bool()));
-    colInfo.put("FS", new Pair<>("yearly_food_stamp", longSpecial(//
+    colInfo.put("FPLMP", new Triple<>("complete_plumbing_flag", ColumnType.LONG, bool()));
+    colInfo.put("FPOBP", new Triple<>("place_of_birth_flag", ColumnType.LONG, bool()));
+    colInfo.put("FPOWSP", new Triple<>("palce_of_work_state_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRACP", new Triple<>("detailed_race_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRELP", new Triple<>("relationship_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRETP", new Triple<>("retirement_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRMSP", new Triple<>("rooms_allocation_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRNTMP", new Triple<>("rent_includes_meals_flag", ColumnType.LONG, bool()));
+    colInfo.put("FRNTP", new Triple<>("rent_monthly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FS", new Triple<>("yearly_food_stamp", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
-    colInfo.put("FSCHGP", new Pair<>("grade_attending_flag", bool()));
-    colInfo.put("FSCHLP", new Pair<>("highest_education_flag", bool()));
-    colInfo.put("FSCHP", new Pair<>("school_enrollment_flag", bool()));
-    colInfo.put("FSEMP", new Pair<>("self_employment_income_flag", bool()));
-    colInfo.put("FSEXP", new Pair<>("sex_flag", bool()));
-    colInfo.put("FSMP", new Pair<>("second_junior_mortgage_payment_monthly_flag", bool()));
-    colInfo.put("FSMXHP", new Pair<>("home_equity_loan_flag", bool()));
-    colInfo.put("FSMXSP", new Pair<>("second_mortgage_flag", bool()));
-    colInfo.put("FSSIP", new Pair<>("supplementary_security_income_flag", bool()));
-    colInfo.put("FSSP", new Pair<>("social_security_income_flag", bool()));
-    colInfo.put("FTAXP", new Pair<>("taxes_on_poperty_flag", bool()));
-    colInfo.put("FTELP", new Pair<>("telephone_in_house_flag", bool()));
-    colInfo.put("FTENP", new Pair<>("tenure_allocation_flag", bool()));
-    colInfo.put("FULP", new Pair<>("fuel_cost_yearly", longSpecial(//
+    colInfo.put("FSCHGP", new Triple<>("grade_attending_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSCHLP", new Triple<>("highest_education_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSCHP", new Triple<>("school_enrollment_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSEMP", new Triple<>("self_employment_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSEXP", new Triple<>("sex_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSMP", new Triple<>("second_junior_mortgage_payment_monthly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSMXHP", new Triple<>("home_equity_loan_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSMXSP", new Triple<>("second_mortgage_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSSIP", new Triple<>("supplementary_security_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FSSP", new Triple<>("social_security_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FTAXP", new Triple<>("taxes_on_poperty_flag", ColumnType.LONG, bool()));
+    colInfo.put("FTELP", new Triple<>("telephone_in_house_flag", ColumnType.LONG, bool()));
+    colInfo.put("FTENP", new Triple<>("tenure_allocation_flag", ColumnType.LONG, bool()));
+    colInfo.put("FULP", new Triple<>("fuel_cost_yearly", ColumnType.LONG, longSpecial(//
         R("bbbb", -3L), R("0001", -2L), R("0002", -1L))));
-    colInfo.put("FVACSP", new Pair<>("vacancy_status_flag", bool()));
-    colInfo.put("FVALP", new Pair<>("property_value_flag", bool()));
-    colInfo.put("FVEHP", new Pair<>("vehicles_available_flag", bool()));
-    colInfo.put("FWAGP", new Pair<>("wages_salary_income_flag", bool()));
-    colInfo.put("FWATP", new Pair<>("water_cost_yearly_flag", bool()));
-    colInfo.put("FWKHP", new Pair<>("hours_worked_per_week_flag", bool()));
-    colInfo.put("FWKLP", new Pair<>("last_worked_flag", bool()));
-    colInfo.put("FWKWP", new Pair<>("weeks_worked_flag", bool()));
-    colInfo.put("FYBLP", new Pair<>("year_building_built_flag", bool()));
-    colInfo.put("FYOEP", new Pair<>("year_of_entry_flag", bool()));
-    colInfo.put("GASP", new Pair<>("gas_monthly", longSpecial( //
+    colInfo.put("FVACSP", new Triple<>("vacancy_status_flag", ColumnType.LONG, bool()));
+    colInfo.put("FVALP", new Triple<>("property_value_flag", ColumnType.LONG, bool()));
+    colInfo.put("FVEHP", new Triple<>("vehicles_available_flag", ColumnType.LONG, bool()));
+    colInfo.put("FWAGP", new Triple<>("wages_salary_income_flag", ColumnType.LONG, bool()));
+    colInfo.put("FWATP", new Triple<>("water_cost_yearly_flag", ColumnType.LONG, bool()));
+    colInfo.put("FWKHP", new Triple<>("hours_worked_per_week_flag", ColumnType.LONG, bool()));
+    colInfo.put("FWKLP", new Triple<>("last_worked_flag", ColumnType.LONG, bool()));
+    colInfo.put("FWKWP", new Triple<>("weeks_worked_flag", ColumnType.LONG, bool()));
+    colInfo.put("FYBLP", new Triple<>("year_building_built_flag", ColumnType.LONG, bool()));
+    colInfo.put("FYOEP", new Triple<>("year_of_entry_flag", ColumnType.LONG, bool()));
+    colInfo.put("GASP", new Triple<>("gas_monthly", ColumnType.LONG, longSpecial( //
         R("bbb", -4L), R("001", -3L), R("002", -2L), R("003", -1L))));
-    colInfo.put("GCL", new Pair<>("grandchildren_living_in_house", longSpecial(//
+    colInfo.put("GCL", new Triple<>("grandchildren_living_in_house", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("GCM",
-        new Pair<>("months_responsible_for_grandchildren",
+        new Triple<>("months_responsible_for_grandchildren", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Less than 6 months"), R("2", "6 to 11 months"), R("3", "1 to 2 years"),
                 R("4", "3 to 4 years"), R("5", "5 or more years"))));
-    colInfo.put("GCR", new Pair<>("responsible_for_grandchildren", longSpecial(//
+    colInfo.put("GCR", new Triple<>("responsible_for_grandchildren", ColumnType.LONG, longSpecial(//
         R("b", "n/a"), R("1", 1L), R("2", 0L))));
-    colInfo.put("GRNTP", new Pair<>("gross_rent", longSpecial(//
+    colInfo.put("GRNTP", new Triple<>("gross_rent", ColumnType.LONG, longSpecial(//
         R("bbbb", -1L))));
-    colInfo.put("GRPIP", new Pair<>("gross_rent_percentage_of_income", longSpecial(//
+    colInfo.put("GRPIP", new Triple<>("gross_rent_percentage_of_income", ColumnType.LONG, longSpecial(//
         R("bbb", -1L))));
     colInfo.put("HFL",
-        new Pair<>("house_heating_fuel",
+        new Triple<>("house_heating_fuel", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (GQ/vacant)"), R("1", "Utility gas"), R("2", "Bottled, tank, or LP gas"),
                 R("3", "Electricity"), R("4", "Fuel oil, kerosene, etc."), R("5", "Coal or coke"), R("6", "Wood"),
                 R("7", "Solar energy"), R("8", "Other fuel"), R("9", "No fuel used"))));
     colInfo.put("HHL",
-        new Pair<>("household_language",
+        new Triple<>("household_language", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "English only"), R("2", "Spanish"), R("3", "Other Indo-European languages"),
                 R("4", "Asian and Pacific Island languages"), R("5", "Other language"))));
     colInfo.put("HHT",
-        new Pair<>("household_family_type",
+        new Triple<>("household_family_type", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Married-couple family household"), R("2", "Male householder, no wife present"),
                 R("3", "Female householder, no husband present"), R("4", "Living alone (male)"),
                 R("5", "Not living alone (male)"), R("6", "Living alone (female)"), R("7", "Living alone (female)"))));
-    colInfo.put("HINCP", new Pair<>("household_income_last_12_months", longSpecial(//
+    colInfo.put("HINCP", new Triple<>("household_income_last_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbbbb", 0L))));
     colInfo.put("HISP",
-        new Pair<>("detailed_hispanic_origin_recoded",
+        new Triple<>("detailed_hispanic_origin_recoded", ColumnType.STRING,
             new ReplaceFn(//
                 R("01", "Not Spanish/Hispanic/Latino"), R("02", "Mexican"), R("03", "Puerto Rican"), R("04", "Cuban"),
                 R("05", "Dominican"), R("06", "Costa Rican"), R("07", "Guatemalan"), R("08", "Honduran"),
@@ -408,28 +422,27 @@ public class PumsAdjust {
                 R("17", "Ecuadorian"), R("18", "Paraguayan"), R("19", "Peruvian"), R("20", "Uruguayan"),
                 R("21", "Venezuelan"), R("22", "Other South American"), R("23", "Spaniard"),
                 R("24", "All Other Spanish/Hispanic/Latino"))));
-    colInfo.put("HUGCL", new Pair<>("grandchildren_in_housing_unit", longSpecial(//
+    colInfo.put("HUGCL", new Triple<>("grandchildren_in_housing_unit", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("HUPAC",
-        new Pair<>("houshold_age_of_children",
+        new Triple<>("houshold_age_of_children", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "With children under 6 years only"), R("2", "With children 6 to 17 years only"),
                 R("3", "With children under 6 years and 6 to 17 years"), R("4", "No children"))));
-    colInfo.put("HUPAOC",
-        new Pair<>("houshold_age_of_own_children",
-            new ReplaceFn(//
-                R("b", "n/a"), R("1", "With own children under 6 years only"),
-                R("2", "With own children 6 to 17 years only"),
-                R("3", "With own children under 6 years and 6 to 17 years"), R("4", "No children"))));
+    colInfo.put("HUPAOC", new Triple<>("houshold_age_of_own_children", ColumnType.STRING,
+
+    new ReplaceFn(//
+        R("b", "n/a"), R("1", "With own children under 6 years only"), R("2", "With own children 6 to 17 years only"),
+        R("3", "With own children under 6 years and 6 to 17 years"), R("4", "No children"))));
     colInfo.put("HUPARC",
-        new Pair<>("houshold_age_of_related_children",
+        new Triple<>("houshold_age_of_related_children", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "With related children under 6 years only"),
                 R("2", "With related children 6 to 17 years only"),
                 R("3", "With related children under 6 years and 6 to 17 years"), R("4", "No children"))));
     colInfo
         .put("INDP",
-            new Pair<>("industry_recode",
+            new Triple<>("industry_recode", ColumnType.STRING,
                 new ReplaceFn(//
                     R("bbbb",
                         "N/A (less than 16 years old/NILF who last worked more than 5 years ago or never worked)"),
@@ -611,12 +624,12 @@ public class PumsAdjust {
         R("9780", "MIL-U.S. COAST GUARD"), R("9790", "MIL-U.S. ARMED FORCES, BRANCH NOT SPECIFIED"),
         R("9870", "MIL-MILITARY RESERVES OR NATIONAL GUARD"),
         R("9920", "UNEMPLOYED AND LAST WORKED 5 YEARS AGO OR EARLIER OR NEVER WORKED"))));
-    colInfo.put("INSP", new Pair<>("fire_hazard_flood_insurance_yearly", longSpecial(//
+    colInfo.put("INSP", new Triple<>("fire_hazard_flood_insurance_yearly", ColumnType.LONG, longSpecial(//
         R("bbbb", -1L))));
-    colInfo.put("INTP", new Pair<>("interest_dividend_net_rental_income", longSpecial(//
+    colInfo.put("INTP", new Triple<>("interest_dividend_net_rental_income", ColumnType.LONG, longSpecial(//
         R("bbbbbb", 0L))));
     colInfo.put("JWAP",
-        new Pair<>("time_arrival_at_work", new ReplaceFn(//
+        new Triple<>("time_arrival_at_work", ColumnType.STRING, new ReplaceFn(//
             R("bbb", "n/a"), R("001", "12:00 am"), R("002", "12:05 am"), R("003", "12:10 am"), R("004", "12:15 am"),
             R("005", "12:20 am"), R("006", "12:25 am"), R("007", "12:30 am"), R("008", "12:40 am"),
             R("009", "12:45 am"), R("010", "12:50 am"), R("011", "1:00 am"), R("012", "1:05 am"), R("013", "1:10 am"),
@@ -678,18 +691,18 @@ public class PumsAdjust {
             R("274", "11:00 pm"), R("275", "11:05 pm"), R("276", "11:10 pm"), R("277", "11:15 pm"),
             R("278", "11:20 pm"), R("279", "11:25 pm"), R("280", "11:30 pm"), R("281", "11:35 pm"),
             R("282", "11:40 pm"), R("283", "11:45 pm"), R("284", "11:50 pm"), R("285", "11:55 pm"))));
-    colInfo.put("JWDP", new Pair<>("time_departure_at_work", colInfo.get("JWAP").getRight()));
-    colInfo.put("JWMNP", new Pair<>("travl_time_to_work_minutes", longSpecial(//
+    colInfo.put("JWDP", new Triple<>("time_departure_at_work", ColumnType.STRING, colInfo.get("JWAP").getRight()));
+    colInfo.put("JWMNP", new Triple<>("travl_time_to_work_minutes", ColumnType.LONG, longSpecial(//
         R("bbb", 0L))));
     colInfo.put("JWRIP",
-        new Pair<>("vehicle_occupancy",
+        new Triple<>("vehicle_occupancy", ColumnType.STRING,
             new ReplaceFn(//
                 R("bb", "n/a"), R("01", "Drove alone"), R("02", "In 2-person carpool"), R("03", "In 3-person carpool"),
                 R("04", "In 4-person carpool"), R("05", "In 5-person carpool"), R("06", "In 6-person carpool"),
                 R("07", "In 7-person carpool"), R("08", "In 8-person carpool"), R("09", "In 9-person carpool"),
                 R("10", "In 10-person or more carpool"))));
     colInfo.put("JWTR",
-        new Pair<>("transportation_to_work",
+        new Triple<>("transportation_to_work", ColumnType.STRING,
             new ReplaceFn(//
                 R("bb",
                     "N/A (not a worker--not in the labor force, including persons under 16 years; unemployed; employed, with a job but not at work; Armed Forces, with a job but not at work)"),
@@ -697,10 +710,10 @@ public class PumsAdjust {
                 R("03", "Streetcar or trolley car (carro publico in Puerto Rico)"), R("04", "Subway or elevated"),
                 R("05", "Railroad"), R("06", "Ferryboat"), R("07", "Taxicab"), R("08", "Motorcycle"),
                 R("09", "Bicycle"), R("10", "Walked"), R("11", "Worked at home"), R("12", "Other method"))));
-    colInfo.put("KIT", new Pair<>("complete_kitchen", longSpecial(//
+    colInfo.put("KIT", new Triple<>("complete_kitchen", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("LANP",
-        new Pair<>("language_at_home",
+        new Triple<>("language_at_home", ColumnType.STRING,
             new ReplaceFn(//
                 R("bbb", "N/A (less than 5 years old/speaks only English)"), R("601", "Jamaican Creole"),
                 R("607", "German"), R("608", "Pennsylvania Dutch"), R("609", "Yiddish"), R("610", "Dutch"),
@@ -731,26 +744,26 @@ public class PumsAdjust {
                 R("990", "Aleut-Eskimo languages"), R("992", "South/Central American Indian languages"),
                 R("993", "Other Specified North American Indian languages"), R("994", "Other languages"),
                 R("996", "Uncodable"))));
-    colInfo.put("LANX", new Pair<>("language_other_than_english", longSpecial(//
+    colInfo.put("LANX", new Triple<>("language_other_than_english", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
-    colInfo.put("LNGI", new Pair<>("linguistic_isolation", new ReplaceFn(//
+    colInfo.put("LNGI", new Triple<>("linguistic_isolation", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "Not linguistically isolated"), R("2", "Linguistically isolated"))));
     colInfo.put("MAR",
-        new Pair<>("marital_status",
+        new Triple<>("marital_status", ColumnType.STRING,
             new ReplaceFn(//
                 R("1", "Married"), R("2", "Widowed"), R("3", "Divorced"), R("4", "Separated"),
                 R("5", "Never married or under 15 years old"))));
-    colInfo.put("MHP", new Pair<>("mobile_home_cost_yearly", longSpecial(//
+    colInfo.put("MHP", new Triple<>("mobile_home_cost_yearly", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("MIG",
-        new Pair<>("mobility_status",
+        new Triple<>("mobility_status", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Yes, same house (nonmovers)"), R("2", "No, outside US and Puerto Rico"),
                 R("3", "No, different house in US or Puerto Rico"))));
-    colInfo.put("MIGPUMA", new Pair<>("migration_puma", longSpecial(//
+    colInfo.put("MIGPUMA", new Triple<>("migration_puma", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("MIGSP",
-        new Pair<>("migration_recode",
+        new Triple<>("migration_recode", ColumnType.STRING,
             new ReplaceFn(//
                 R("bbb", "N/A (person less than 1 year old/lived in same house 1 year ago)"), R("001", "Alabama/AL"),
                 R("002", "Alaska/AK"), R("004", "Arizona/AZ"), R("005", "Arkansas/AR"), R("006", "California/CA"),
@@ -786,55 +799,55 @@ public class PumsAdjust {
                 R("501", "Australia"),
                 R("554", "Australian and New Zealand Subregions, Not Specified, Oceania and at Sea"))));
     colInfo.put("MIL",
-        new Pair<>("military_service",
+        new Triple<>("military_service", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Yes, now on active duty"),
                 R("2", "Yes, on active duty during the last 12 months, but not now"),
                 R("3", "Yes, on active duty in the past, but not during the last 12 months"),
                 R("4", "No, training for Reserves/National Guard only"), R("5", "No, never served in the military"))));
-    colInfo.put("MLPA", new Pair<>("military_served_sept_2001_later", longSpecial(//
+    colInfo.put("MLPA", new Triple<>("military_served_sept_2001_later", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPB", new Pair<>("military_served_aug_1990_to_aug_2001", longSpecial(//
+    colInfo.put("MLPB", new Triple<>("military_served_aug_1990_to_aug_2001", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPC", new Pair<>("military_served_sept_1980_to_jul_1990", longSpecial(//
+    colInfo.put("MLPC", new Triple<>("military_served_sept_1980_to_jul_1990", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPD", new Pair<>("military_served_may_1975_to_aug_1980", longSpecial(//
+    colInfo.put("MLPD", new Triple<>("military_served_may_1975_to_aug_1980", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPE", new Pair<>("military_served_vietnam_era", longSpecial(//
+    colInfo.put("MLPE", new Triple<>("military_served_vietnam_era", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPF", new Pair<>("military_served_mar_1961_to_jul_1964", longSpecial(//
+    colInfo.put("MLPF", new Triple<>("military_served_mar_1961_to_jul_1964", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPG", new Pair<>("military_served_feb_1955_to_feb_1961", longSpecial(//
+    colInfo.put("MLPG", new Triple<>("military_served_feb_1955_to_feb_1961", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPH", new Pair<>("military_served_korean_war", longSpecial(//
+    colInfo.put("MLPH", new Triple<>("military_served_korean_war", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPI", new Pair<>("military_served_jan_1947_to_jun_1950", longSpecial(//
+    colInfo.put("MLPI", new Triple<>("military_served_jan_1947_to_jun_1950", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPJ", new Pair<>("military_served_ww2", longSpecial(//
+    colInfo.put("MLPJ", new Triple<>("military_served_ww2", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MLPK", new Pair<>("military_served_nov_1941-or_earlier", longSpecial(//
+    colInfo.put("MLPK", new Triple<>("military_served_nov_1941_or_earlier", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("MRGI", new Pair<>("first_mortgage_includes_insurance", longSpecial(//
+    colInfo.put("MRGI", new Triple<>("first_mortgage_includes_insurance", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
-    colInfo.put("MRGP", new Pair<>("first_mortgage_payment", longSpecial(//
+    colInfo.put("MRGP", new Triple<>("first_mortgage_payment", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
-    colInfo.put("MRGT", new Pair<>("first_mortgage_includes_taxes", longSpecial(//
+    colInfo.put("MRGT", new Triple<>("first_mortgage_includes_taxes", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("MRGX",
-        new Pair<>("first_mortgage_status",
+        new Triple<>("first_mortgage_status", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Mortgage deed of trust, or similar debt"), R("2", "Contract to purchase"),
                 R("3", "None"))));
     colInfo.put("MSP",
-        new Pair<>("married_spouse_status",
+        new Triple<>("married_spouse_status", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Now married, spouse present"), R("2", "Now married, spouse absent"),
                 R("3", "Widowed"), R("4", "Divorced"), R("5", "Separated"), R("6", "Never married"))));
     colInfo.put("MV",
-        new Pair<>("when_moved_in", new ReplaceFn(//
+        new Triple<>("when_moved_in", ColumnType.STRING, new ReplaceFn(//
             R("b", "n/a"), R("1", "12 months or less"), R("2", "13 to 23 months"), R("3", "2 to 4 years"),
             R("4", "5 to 9 years"), R("5", "10 to 19 years"), R("6", "20 to 29 years"), R("7", "30 years or more"))));
-    colInfo.put("NAICSP", new Pair<>("naics_industry",
+    colInfo.put("NAICSP", new Triple<>("naics_industry", ColumnType.STRING,
         new ReplaceFn(//
             R("bbbbbbbb", "N/A (less than 16 years old/NILF who last worked more than 5 years ago or never worked)"),
             R("111", "AGR-CROP PRODUCTION"), R("112", "AGR-ANIMAL PRODUCTION"),
@@ -1011,35 +1024,35 @@ public class PumsAdjust {
         R("92M2", "ADM-ADMINISTRATION OF ECONOMIC PROGRAMS AND SPACE RESEARCH"),
         R("92MP", "ADM-JUSTICE, PUBLIC ORDER, AND SAFETY ACTIVITIES"),
         R("9920", "UNEMPLOYED AND LAST WORKED 5 YEARS AGO OR EARLIER OR NEVER WORKED"))));
-    colInfo.put("NATIVITY", new Pair<>("nativity", new ReplaceFn(//
+    colInfo.put("NATIVITY", new Triple<>("nativity", ColumnType.STRING, new ReplaceFn(//
         R("1", "native"), R("2", "foreign born"))));
-    colInfo.put("NOC", new Pair<>("number_of_own_children_in_household", longSpecial(//
+    colInfo.put("NOC", new Triple<>("number_of_own_children_in_household", ColumnType.LONG, longSpecial(//
         R("bb", -1L))));
-    colInfo.put("NP", new Pair<>("number_of_persons", longFn()));
-    colInfo.put("NPF", new Pair<>("number_of_persons_in_family", longSpecial(//
+    colInfo.put("NP", new Triple<>("number_of_persons", ColumnType.LONG, longFn()));
+    colInfo.put("NPF", new Triple<>("number_of_persons_in_family", ColumnType.LONG, longSpecial(//
         R("bb", -1L))));
-    colInfo.put("NPP", new Pair<>("grandparent_household", longSpecial(//
+    colInfo.put("NPP", new Triple<>("grandparent_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("NR", new Pair<>("nonrelative_in_household", longSpecial(//
+    colInfo.put("NR", new Triple<>("nonrelative_in_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("NRC", new Pair<>("number_of_related_children_in_household", longSpecial(//
+    colInfo.put("NRC", new Triple<>("number_of_related_children_in_household", ColumnType.LONG, longSpecial(//
         R("bb", -1L))));
-    colInfo.put("NWAB", new Pair<>("temporary_absence_from_work_unedited", new ReplaceFn(//
+    colInfo.put("NWAB", new Triple<>("temporary_absence_from_work_unedited", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "yes"), R("2", "no"), R("3", "did not report"))));
     colInfo.put("NWAV",
-        new Pair<>("available_for_work_unedited",
+        new Triple<>("available_for_work_unedited", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "yes"), R("2", "no, temporary ill"), R("3", "no, other reasons"),
                 R("4", "no, unspecified"), R("5", "did not report"))));
-    colInfo.put("NWLA", new Pair<>("layoff_from_work_unedited", new ReplaceFn(//
+    colInfo.put("NWLA", new Triple<>("layoff_from_work_unedited", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "yes"), R("2", "no"), R("3", "did not report"))));
-    colInfo.put("NWLK", new Pair<>("looking_for_work_unedited", new ReplaceFn(//
+    colInfo.put("NWLK", new Triple<>("looking_for_work_unedited", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "yes"), R("2", "no"), R("3", "did not report"))));
-    colInfo.put("NWRE", new Pair<>("informed_of_recall_work_unedited", new ReplaceFn(//
+    colInfo.put("NWRE", new Triple<>("informed_of_recall_work_unedited", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "yes"), R("2", "no"), R("3", "did not report"))));
-    colInfo.put("OC", new Pair<>("own_child", bool()));
+    colInfo.put("OC", new Triple<>("own_child", ColumnType.LONG, bool()));
     colInfo.put("OCCP",
-        new Pair<>("occupation_recode", new ReplaceFn(//
+        new Triple<>("occupation_recode", ColumnType.STRING, new ReplaceFn(//
             R("bbbb", "N/A (less than 16 years old/NILF who last worked more than 5 years ago or never worked)"),
             R("0010", "MGR-CHIEF EXECUTIVES AND LEGISLATORS"), R("0020", "MGR-GENERAL AND OPERATIONS MANAGERS"),
             R("0040", "MGR-ADVERTISING AND PROMOTIONS MANAGERS"), R("0050", "MGR-MARKETING AND SALES MANAGERS"),
@@ -1367,31 +1380,31 @@ public class PumsAdjust {
         R("9820", "MIL-MILITARY ENLISTED TACTICAL OPERATIONS AND AIR/WEAPONS SPECIALISTS AND CREW MEMBERS"),
         R("9830", "MIL-MILITARY, RANK NOT SPECIFIED "),
         R("9920", "UNEMPLOYED AND LAST WORKED 5 YEARS AGO OR EARLIER OR NEVER WORKED"))));
-    colInfo.put("OCPIP", new Pair<>("owner_cost_monthly_percentage_household_income", longSpecial(//
+    colInfo.put("OCPIP", new Triple<>("owner_cost_monthly_percentage_household_income", ColumnType.LONG, longSpecial(//
         R("bbb", -1L))));
-    colInfo.put("OIP", new Pair<>("other_income_12_months", longSpecial(//
+    colInfo.put("OIP", new Triple<>("other_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbb", -1L))));
     colInfo.put("PAOC",
-        new Pair<>("presence_and_age_of_own_children",
+        new Triple<>("presence_and_age_of_own_children", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "With own children under 6 years only"),
                 R("2", "With own children 6 to 17 years only"),
                 R("3", "With own children under 6 years and 6 to 17 years only"), R("4", "No own children"))));
-    colInfo.put("PAP", new Pair<>("public_assistence_income_12_months", longSpecial(//
+    colInfo.put("PAP", new Triple<>("public_assistence_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("PARTNER",
-        new Pair<>("unmarried_partner_household",
+        new Triple<>("unmarried_partner_household", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("0", "No unmarried partner in household"), R("1", "Male householder, male partner"),
                 R("2", "Male householder, female partner"), R("3", "Female householder, female partner"),
                 R("4", "Female householder, male partner"))));
-    colInfo.put("PERNP", new Pair<>("total_earnings", longSpecial(//
+    colInfo.put("PERNP", new Triple<>("total_earnings", ColumnType.LONG, longSpecial(//
         R("bbbbbbb", 0L))));
-    colInfo.put("PINCP", new Pair<>("total_income", longSpecial(//
+    colInfo.put("PINCP", new Triple<>("total_income", ColumnType.LONG, longSpecial(//
         R("bbbbbbb", 0L))));
-    colInfo.put("PLM", new Pair<>("complete_plumbing", longSpecial(//
+    colInfo.put("PLM", new Triple<>("complete_plumbing", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
-    colInfo.put("POBP", new Pair<>("place_of_birth", new ReplaceFn(//
+    colInfo.put("POBP", new Triple<>("place_of_birth", ColumnType.STRING, new ReplaceFn(//
         R("001", "Alabama/AL"), R("002", "Alaska/AK"), R("004", "Arizona/AZ"), R("005", "Arkansas/AR"),
         R("006", "California/CA"), R("008", "Colorado/CO"), R("009", "Connecticut/CT"), R("010", "Delaware/DE"),
         R("011", "District of Columbia/DC"), R("012", "Florida/FL"), R("013", "Georgia/GA"), R("015", "Hawaii/HI"),
@@ -1442,12 +1455,12 @@ public class PumsAdjust {
         R("467", "Western Africa, Not Specified"), R("468", "Other Africa, Not Specified"), R("501", "Australia"),
         R("508", "Fiji"), R("512", "Micronesia"), R("515", "New Zealand"), R("523", "Tonga"), R("527", "Samoa"),
         R("554", "Other US Island Areas, Oceania, Not Specified, or at Sea"))));
-    colInfo.put("POVPIP", new Pair<>("pverty_status", longSpecial(//
+    colInfo.put("POVPIP", new Triple<>("pverty_status", ColumnType.LONG, longSpecial(//
         R("bbb", -1L))));
-    colInfo.put("POWPUMA", new Pair<>("place_of_work_puma", longSpecial(//
+    colInfo.put("POWPUMA", new Triple<>("place_of_work_puma", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("POWSP",
-        new Pair<>("place_of_work", new ReplaceFn(//
+        new Triple<>("place_of_work", ColumnType.STRING, new ReplaceFn(//
             R("bbb",
                 "N/A (not a worker--not in the labor force, including persons under 16 years; unemployed; employed, with a job not at work; Armed Forces, with a job but not at work)"),
             R("001", "Alabama/AL"), R("002", "Alaska/AK"), R("004", "Arizona/AZ"), R("005", "Arkansas/AR"),
@@ -1466,24 +1479,24 @@ public class PumsAdjust {
             R("166", "Europe"), R("213", "Iraq"), R("251", "Eastern Asia"), R("254", "Other Asia, Not Specified"),
             R("303", "Mexico"), R("399", "Americas, Not Specified"),
             R("555", "Other US Island Areas Not Specified, Africa, Oceania, at Sea, or Abroad, Not Specified"))));
-    colInfo.put("PSF", new Pair<>("subfamilies_in_household", longSpecial(//
+    colInfo.put("PSF", new Triple<>("subfamilies_in_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("PUMA", new Pair<>("puma", longFn()));
-    colInfo.put("PWGTP", new Pair<>("person_weight", longFn()));
-    colInfo.put("PWGTPR", new Pair<>("person_weight_replicate", longFn()));
+    colInfo.put("PUMA", new Triple<>("puma", ColumnType.LONG, longFn()));
+    colInfo.put("PWGTP", new Triple<>("person_weight", ColumnType.LONG, longFn()));
+    colInfo.put("PWGTPR", new Triple<>("person_weight_replicate", ColumnType.LONG, longFn()));
     colInfo.put("QTRBIR",
-        new Pair<>("quater_of_birth",
+        new Triple<>("quater_of_birth", ColumnType.STRING,
             new ReplaceFn(//
                 R("1", "January through March"), R("2", "April through June"), R("3", "July through September"),
                 R("4", "October through December"))));
-    colInfo.put("R18", new Pair<>("persons_under_18_in_household", longSpecial(//
+    colInfo.put("R18", new Triple<>("persons_under_18_in_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("R60", new Pair<>("persons_over_60_in_household", longSpecial(//
+    colInfo.put("R60", new Triple<>("persons_over_60_in_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
-    colInfo.put("R65", new Pair<>("persons_over_65_in_household", longSpecial(//
+    colInfo.put("R65", new Triple<>("persons_over_65_in_household", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("0", 0L), R("1", 1L))));
     colInfo.put("RAC1P",
-        new Pair<>("detailed_race_code_recoded_1",
+        new Triple<>("detailed_race_code_recoded_1", ColumnType.STRING,
             new ReplaceFn(//
                 R("1", "White alone"), R("2", "Black or African American alone"), R("3", "American Indian alone"),
                 R("4", "Alaska Native alone"),
@@ -1492,7 +1505,7 @@ public class PumsAdjust {
         R("6", "Asian alone"), R("7", "Native Hawaiian and Other Pacific Islander alone"),
         R("8", "Some other race alone"), R("9", "Two or more major race groups"))));
     colInfo.put("RAC2P",
-        new Pair<>("detailed_race_code_recoded_2",
+        new Triple<>("detailed_race_code_recoded_2", ColumnType.STRING,
             new ReplaceFn(//
                 R("01", "White alone"), R("02", "Black or African American alone"), R("03", "Apache alone"),
                 R("04", "Blackfeet alone"), R("05", "Cherokee alone"), R("06", "Cheyenne alone"), R("07",
@@ -1525,7 +1538,7 @@ public class PumsAdjust {
                     "Other Native Hawaiian and Other Pacific Islander groups alone or in combination with other Native Hawaiian and Other Pacific Islander groups only"),
         R("66", "Some other race alone"), R("67", "Two or more races"))));
     colInfo.put("RAC3P",
-        new Pair<>("detailed_race_code_recoded_3", new ReplaceFn(//
+        new Triple<>("detailed_race_code_recoded_3", ColumnType.STRING, new ReplaceFn(//
             R("01", "Some other race alone"), R("02", "Other Pacific Islander alone"), R("03", "Samoan alone"),
             R("04", "Guamanian or Chamorro alone"), R("05", "Native Hawaiian alone"),
             R("06", "Native Hawaiian and Other Pacific Islander groups only"), R("07", "Other Asian; Some other race"),
@@ -1570,18 +1583,18 @@ public class PumsAdjust {
             "White race; Black or African American race and/or American Indian and Alaska Native race and/or Asian groups and/or Native Hawaiian and Other Pacific Islander groups"),
         R("72",
             "White race; Some other race; Black or African American race and/or American Indian and Alaska Native race and/or Asian groups and/or Native Hawaiian and Other Pacific Islander groups"))));
-    colInfo.put("RACAIAN", new Pair<>("american_indian_and_alaska_native_recode", bool()));
-    colInfo.put("RACASN", new Pair<>("asian_recode", bool()));
-    colInfo.put("RACBLK", new Pair<>("black_or_african_recode", bool()));
-    colInfo.put("RACNHPI", new Pair<>("native_hawaiian_pacific_islander_recode", bool()));
-    colInfo.put("RACNUM", new Pair<>("major_race_groups_represented", longFn()));
-    colInfo.put("RACSOR", new Pair<>("some_other_race_recode", bool()));
-    colInfo.put("RACWHT", new Pair<>("white_recode", bool()));
-    colInfo.put("RC", new Pair<>("related_child", bool()));
-    colInfo.put("REGION", new Pair<>("region", new ReplaceFn(//
+    colInfo.put("RACAIAN", new Triple<>("american_indian_and_alaska_native_recode", ColumnType.LONG, bool()));
+    colInfo.put("RACASN", new Triple<>("asian_recode", ColumnType.LONG, bool()));
+    colInfo.put("RACBLK", new Triple<>("black_or_african_recode", ColumnType.LONG, bool()));
+    colInfo.put("RACNHPI", new Triple<>("native_hawaiian_pacific_islander_recode", ColumnType.LONG, bool()));
+    colInfo.put("RACNUM", new Triple<>("major_race_groups_represented", ColumnType.LONG, longFn()));
+    colInfo.put("RACSOR", new Triple<>("some_other_race_recode", ColumnType.LONG, bool()));
+    colInfo.put("RACWHT", new Triple<>("white_recode", ColumnType.LONG, bool()));
+    colInfo.put("RC", new Triple<>("related_child", ColumnType.LONG, bool()));
+    colInfo.put("REGION", new Triple<>("region", ColumnType.STRING, new ReplaceFn(//
         R("1", "Northeast"), R("2", "Midwest"), R("3", "South"), R("4", "West"), R("9", "Puerto Rico"))));
     colInfo.put("REL",
-        new Pair<>("relationship",
+        new Triple<>("relationship", ColumnType.STRING,
             new ReplaceFn(//
                 R("00", "Reference person"), R("01", "Husband/wife"), R("02", "Son/daughter"),
                 R("03", "Brother/sister"), R("04", "Father/mother"), R("05", "Grandchild"), R("06", "In-law"),
@@ -1589,29 +1602,29 @@ public class PumsAdjust {
                 R("10", "Unmarried partner"), R("11", "Foster child"), R("12", "Other nonrelative"),
                 R("13", "Institutionalized group quarters population"),
                 R("14", "Noninstitutionalized group quarters population"))));
-    colInfo.put("RESMODE", new Pair<>("response_mode", new ReplaceFn(//
+    colInfo.put("RESMODE", new Triple<>("response_mode", ColumnType.STRING, new ReplaceFn(//
         R("b", "n/a"), R("1", "Mail"), R("2", "CATI/CAPI"))));
-    colInfo.put("RETP", new Pair<>("retirement_income_12_months", longSpecial(//
+    colInfo.put("RETP", new Triple<>("retirement_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbb", -1L))));
-    colInfo.put("RMS", new Pair<>("rooms", longSpecial(//
+    colInfo.put("RMS", new Triple<>("rooms", ColumnType.LONG, longSpecial(//
         R("b", -1L))));
-    colInfo.put("RNTM", new Pair<>("meals_included_in_rent", longSpecial(//
+    colInfo.put("RNTM", new Triple<>("meals_included_in_rent", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
-    colInfo.put("RNTP", new Pair<>("rent_monthly", longSpecial(//
+    colInfo.put("RNTP", new Triple<>("rent_monthly", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("SCH",
-        new Pair<>("school_enrollment",
+        new Triple<>("school_enrollment", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "No, has not attended in the last 3 months"),
                 R("2", "Yes, public school or public college"), R("3", "Yes, private school or private college"))));
     colInfo.put("SCHG",
-        new Pair<>("school_grade",
+        new Triple<>("school_grade", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Nursery school/preschool"), R("2", "Kindergarten"), R("3", "Grade 1 to grade 4"),
                 R("4", "Grade 5 to grade 8"), R("5", "Grade 9 to grade 12"), R("6", "College undergraduate"),
                 R("7", "Graduate or professional school"))));
     colInfo.put("SCHL",
-        new Pair<>("educational_attainment",
+        new Triple<>("educational_attainment", ColumnType.STRING,
             new ReplaceFn(//
                 R("bb", "N/A (less than 3 years old)"), R("01", "No schooling completed"),
                 R("02", "Nursery school to grade 4"), R("03", "Grade 5 or grade 6"), R("04", "Grade 7 or grade 8"),
@@ -1620,30 +1633,30 @@ public class PumsAdjust {
                 R("11", "One or more years of college, no degree"), R("12", "Associate's degree"),
                 R("13", "Bachelor's degree"), R("14", "Master's degree"), R("15", "Professional school degree"),
                 R("16", "Doctorate degree"))));
-    colInfo.put("SEMP", new Pair<>("self_employment_income_12_months", longSpecial(//
+    colInfo.put("SEMP", new Triple<>("self_employment_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbb", 0L))));
-    colInfo.put("SEX", new Pair<>("sex", new ReplaceFn(//
+    colInfo.put("SEX", new Triple<>("sex", ColumnType.STRING, new ReplaceFn(//
         R("1", "male"), R("2", "female"))));
-    colInfo.put("SFN", new Pair<>("subfamily_number", longSpecial(//
+    colInfo.put("SFN", new Triple<>("subfamily_number", ColumnType.LONG, longSpecial(//
         R("b", -1L))));
     colInfo.put("SFR",
-        new Pair<>("subfamily_relationship",
+        new Triple<>("subfamily_relationship", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (GQ/not in a subfamily)"), R("1", "Husband/wife no children"),
                 R("2", "Husband/wife with children"), R("3", "Parent in a parent/child subfamily"),
                 R("4", "Child in a married-couple subfamily"), R("5", "Child in a mother-child subfamily"),
                 R("6", "Child in a father-child subfamily"))));
-    colInfo.put("SMOCP", new Pair<>("selected_owner_cost_monthly", longSpecial(//
+    colInfo.put("SMOCP", new Triple<>("selected_owner_cost_monthly", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
-    colInfo.put("SMP", new Pair<>("second_junior_mortgage_payment_monthly", longSpecial(//
+    colInfo.put("SMP", new Triple<>("second_junior_mortgage_payment_monthly", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("SMX",
-        new Pair<>("second_junior_mortgage_status", new ReplaceFn(//
+        new Triple<>("second_junior_mortgage_status", ColumnType.STRING, new ReplaceFn(//
             R("b", "N/A (GQ/vacant/not owned or being bought)"), R("1", "Yes, a second mortgage"),
             R("2", "Yes, a home equity loan"), R("3", "No"), R("4", "Both a second mortgage and a home equity loan"))));
     colInfo
         .put("SOCP",
-            new Pair<>("soc_occupation",
+            new Triple<>("soc_occupation", ColumnType.STRING,
                 new ReplaceFn(//
                     R("bbbbbb",
                         "N/A (less than 16 years old/NILF who last worked more than 5 years ago or never worked)"),
@@ -1991,14 +2004,14 @@ public class PumsAdjust {
         R("553010", "MIL-MILITARY ENLISTED TACTICAL OPERATIONS AND AIR/WEAPONS SPECIALISTS AND CREW MEMBERS"),
         R("559830", "MIL-MILITARY, RANK NOT SPECIFIED "),
         R("999920", "UNEMPLOYED AND LAST WORKED 5 YEARS AGO OR EARLIER OR NEVER WORKED"))));
-    colInfo.put("SPORDER", new Pair<>("person_number", longFn()));
-    colInfo.put("SRNT", new Pair<>("specified_rent_unit", bool()));
-    colInfo.put("SSIP", new Pair<>("supplementary_security_income_12_months", longSpecial(//
+    colInfo.put("SPORDER", new Triple<>("person_number", ColumnType.LONG, longFn()));
+    colInfo.put("SRNT", new Triple<>("specified_rent_unit", ColumnType.LONG, bool()));
+    colInfo.put("SSIP", new Triple<>("supplementary_security_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
-    colInfo.put("SSP", new Pair<>("social_security_income_12_months", longSpecial(//
+    colInfo.put("SSP", new Triple<>("social_security_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbb", -1L))));
     colInfo.put("ST",
-        new Pair<>("state", new ReplaceFn(//
+        new Triple<>("state", ColumnType.STRING, new ReplaceFn(//
             R("01", "Alabama/AL"), R("02", "Alaska/AK"), R("04", "Arizona/AZ"), R("05", "Arkansas/AR"),
             R("06", "California/CA"), R("08", "Colorado/CO"), R("09", "Connecticut/CT"), R("10", "Delaware/DE"),
             R("11", "District of Columbia/DC"), R("12", "Florida/FL"), R("13", "Georgia/GA"), R("15", "Hawaii/HI"),
@@ -2012,9 +2025,9 @@ public class PumsAdjust {
             R("45", "South Carolina/SC"), R("46", "South Dakota/SD"), R("47", "Tennessee/TN"), R("48", "Texas/TX"),
             R("49", "Utah/UT"), R("50", "Vermont/VT"), R("51", "Virginia/VA"), R("53", "Washington/WA"),
             R("54", "West Virginia/WV"), R("55", "Wisconsin/WI"), R("56", "Wyoming/WY"), R("72", "Puerto Rico/PR"))));
-    colInfo.put("SVAL", new Pair<>("value_owner_unit", bool()));
+    colInfo.put("SVAL", new Triple<>("value_owner_unit", ColumnType.LONG, bool()));
     colInfo.put("TAXP",
-        new Pair<>("property_taxes_yearly",
+        new Triple<>("property_taxes_yearly",
             // new ReplaceFn(//
             // R("bb", "N/A (GQ/vacant/not owned or being bought)"), R("01", "None"), R("02", "$ 1 - $ 49"),
             // R("03", "$ 50 - $ 99"), R("04", "$ 100 - $ 149"), R("05", "$ 150 - $ 199"), R("06", "$ 200 - $ 249"),
@@ -2034,6 +2047,7 @@ public class PumsAdjust {
             // R("59", "$4700 - $4799"), R("60", "$4800 - $4899"), R("61", "$4900 - $4999"), R("62", "$5000 - $5499"),
             // R("63", "$5500 - $5999"), R("64", "$6000 - $6999"), R("65", "$7000 - $7999"), R("66", "$8000 - $8999"),
             // R("67", "$9000 - $9999"), R("68", "$10000+"))));
+            ColumnType.LONG,
             longSpecial(//
                 R("bb", -1L), R("01", 0L), R("02", 1L), R("03", 50L), R("04", 100L), R("05", 150L), R("06", 200L),
                 R("07", 250L), R("08", 300L), R("09", 350L), R("10", 400L), R("11", 450L), R("12", 500L), R("13", 550L),
@@ -2046,24 +2060,24 @@ public class PumsAdjust {
                 R("51", 3900L), R("52", 4000L), R("53", 4100L), R("54", 4200L), R("55", 4300L), R("56", 4400L),
                 R("57", 4500L), R("58", 4600L), R("59", 4700L), R("60", 4800L), R("61", 4900L), R("62", 5000L),
                 R("63", 5500L), R("64", 6000L), R("65", 7000L), R("66", 8000L), R("67", 9000L), R("68", 10000L))));
-    colInfo.put("TEL", new Pair<>("telephone_in_house", longSpecial(//
+    colInfo.put("TEL", new Triple<>("telephone_in_house", ColumnType.LONG, longSpecial(//
         R("b", -1L), R("1", 1L), R("2", 0L))));
     colInfo.put("TEN",
-        new Pair<>("tenure",
+        new Triple<>("tenure", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "n/a"), R("1", "Owned with mortgage or loan (include home equity loans)"),
                 R("2", "Owned free and clear"), R("3", "Rented"), R("4", "Occupied without payment of rent"))));
     colInfo.put("TYPE",
-        new Pair<>("type",
+        new Triple<>("type", ColumnType.STRING,
             new ReplaceFn(//
                 R("1", "Housing unit"), R("2", "Institutional group quarters"),
                 R("3", "Noninstitutional group quarters"))));
-    colInfo.put("VACS", new Pair<>("vacancy_status",
+    colInfo.put("VACS", new Triple<>("vacancy_status", ColumnType.STRING,
         new ReplaceFn(R("b", "N/A (occupied/GQ)"), R("1", "For rent"), R("2", "Rented, not occupied"),
             R("3", "For sale only"), R("4", "Sold, not occupied"), R("5", "For seasonal/recreational/occasional use"),
             R("6", "For migrant workers"), R("7", "Other vacant"))));
     colInfo.put("VAL",
-        new Pair<>("property_value",
+        new Triple<>("property_value",
             // new ReplaceFn(//
             // R("bb", "N/A (GQ/rental unit/vacant, except for-sale-only and sold, not occupied”)"),
             // R("01", "Less than $ 10000"), R("02", "$ 10000 - $ 14999"), R("03", "$ 15000 - $ 19999"),
@@ -2074,6 +2088,7 @@ public class PumsAdjust {
             // R("16", "$150000 - $174999"), R("17", "$175000 - $199999"), R("18", "$200000 - $249999"),
             // R("19", "$250000 - $299999"), R("20", "$300000 - $399999"), R("21", "$400000 - $499999"),
             // R("22", "$500000 - $749999"), R("23", "$750000 - $999999"), R("24", "$1000000+"))));
+            ColumnType.LONG,
             longSpecial(//
                 R("bb", -1L), R("01", 0L), R("02", 10000L), R("03", 15000L), R("04", 20000L), R("05", 25000L),
                 R("06", 30000L), R("07", 35000L), R("08", 40000L), R("09", 50000L), R("10", 60000L), R("11", 70000L),
@@ -2081,10 +2096,10 @@ public class PumsAdjust {
                 R("17", 175000L), R("18", 200000L), R("19", 250000L), R("20", 300000L), R("21", 400000L),
                 R("22", 500000L), R("23", 750000L), R("24", 1000000L))));
 
-    colInfo.put("VEH", new Pair<>("vehicles", longSpecial(//
+    colInfo.put("VEH", new Triple<>("vehicles", ColumnType.LONG, longSpecial(//
         R("b", -1L))));
     colInfo.put("VPS",
-        new Pair<>("veteran_period_of_service", new ReplaceFn(//
+        new Triple<>("veteran_period_of_service", ColumnType.STRING, new ReplaceFn(//
             R("bb", "N/A (less than 17 years old, no active duty) "), R("01", "Gulf War: 9/2001 or later"),
             R("02", "Gulf War: 9/2001 or later and Gulf War: 8/1990 - 8/2001"),
             R("03", "Gulf War: 9/2001 or later and Gulf War: 8/1990 - 8/2001 and Vietnam Era"),
@@ -2098,23 +2113,23 @@ public class PumsAdjust {
             R("9", "Korean War"), R("10", "Korean War and WWII"), R("11", "WWII"),
             R("12", "Between Gulf War and Vietnam Era only"), R("13", "Between Vietnam Era and Korean War only"),
             R("14", "Between Korean War and World War II only"), R("15", "Pre-WWII only"))));
-    colInfo.put("WAGP", new Pair<>("wages_salary_income_12_months", longSpecial(//
+    colInfo.put("WAGP", new Triple<>("wages_salary_income_12_months", ColumnType.LONG, longSpecial(//
         R("bbbbbb", -1L))));
     colInfo.put("WAOB",
-        new Pair<>("world_area_of_birth",
+        new Triple<>("world_area_of_birth", ColumnType.STRING,
             new ReplaceFn(//
                 R("1", "US state (POB = 001-059)"), R("2", "PR and US Island Areas (POB = 060-099)"),
                 R("3", "Latin America (POB = 303,310-399)"), R("4", "Asia (POB = 158-159,161,200-299)"),
                 R("5", "Europe (POB = 100-157,160,162-199)"), R("6", "Africa (POB = 400-499)"),
                 R("7", "Northern America (POB = 300-302,304-309)"), R("8", "Oceania and at Sea (POB = 500-554)"))));
-    colInfo.put("WATP", new Pair<>("water_cost_yearly", longSpecial(//
+    colInfo.put("WATP", new Triple<>("water_cost_yearly", ColumnType.LONG, longSpecial(//
         R("bbbb", -1L))));
-    colInfo.put("WGTP", new Pair<>("housing_weight", longFn()));
-    colInfo.put("WGTPR", new Pair<>("housing_weight_replicate", longFn()));
-    colInfo.put("WIF", new Pair<>("workers_in_family_12_months", longSpecial(//
+    colInfo.put("WGTP", new Triple<>("housing_weight", ColumnType.LONG, longFn()));
+    colInfo.put("WGTPR", new Triple<>("housing_weight_replicate", ColumnType.LONG, longFn()));
+    colInfo.put("WIF", new Triple<>("workers_in_family_12_months", ColumnType.LONG, longSpecial(//
         R("b", -1L))));
     colInfo.put("WKEXREL",
-        new Pair<>("work_experience_of_householder",
+        new Triple<>("work_experience_of_householder", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (GQ/vacant/not a family)"), R("1", "Householder and spouse worked FT"),
                 R("2", "Householder worked FT; spouse worked < FT"),
@@ -2131,22 +2146,22 @@ public class PumsAdjust {
                 R("13", "Female householder worked FT; no spouse present"),
                 R("14", "Female householder worked < FT; no spouse present"),
                 R("15", "Female householder did not work; no spouse present"))));
-    colInfo.put("WKHP", new Pair<>("hours_worked_per_week", longSpecial(//
+    colInfo.put("WKHP", new Triple<>("hours_worked_per_week", ColumnType.LONG, longSpecial(//
         R("bb", -1L))));
     colInfo.put("WKL",
-        new Pair<>("last_worked",
+        new Triple<>("last_worked", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (less than 16 years old)"), R("1", "Within the past 12 months"), R("2", "1-5 years ago"),
                 R("3", "Over 5 years ago or never worked"))));
     colInfo.put("WKW",
-        new Pair<>("weeks_worked_12_months",
+        new Triple<>("weeks_worked_12_months", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (less than 16 years old/did not work during the past 12 months)"), R("1", "50 to 52 weeks"),
                 R("2", "48 to 49 weeks"), R("3", "40 to 47 weeks"), R("4", "27 to 39 weeks"), R("5", "14 to 26 weeks"),
                 R("6", "13 weeks or less"))));
     colInfo
         .put("WORKSTAT",
-            new Pair<>("work_status_of_householder",
+            new Triple<>("work_status_of_householder", ColumnType.STRING,
                 new ReplaceFn(//
                     R("bb", "N/A (GQ/not a family household)"),
                     R("1", "Husband and wife both in labor force, both employed or in Armed Forces"),
@@ -2167,12 +2182,12 @@ public class PumsAdjust {
         R("14", "Female householder with no husband present, householder in labor force and unemployed"),
         R("15", "Female householder with no husband present, householder not in labor force"))));
     colInfo.put("YBL",
-        new Pair<>("year_building_built",
+        new Triple<>("year_building_built", ColumnType.STRING,
             new ReplaceFn(//
                 R("b", "N/A (GQ)"), R("1", "2005 or later"), R("2", "2000 to 2004"), R("3", "1990 to 1999"),
                 R("4", "1980 to 1989"), R("5", "1970 to 1979"), R("6", "1960 to 1969"), R("7", "1950 to 1959"),
                 R("8", "1940 to 1949"), R("9", "1939 or earlier"))));
-    colInfo.put("YOEP", new Pair<>("year_of_entry", longSpecial(//
+    colInfo.put("YOEP", new Triple<>("year_of_entry", ColumnType.LONG, longSpecial(//
         R("bbbb", -1))));
   }
 }

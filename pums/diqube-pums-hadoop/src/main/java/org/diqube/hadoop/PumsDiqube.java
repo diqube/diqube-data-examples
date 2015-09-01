@@ -54,7 +54,7 @@ import com.opencsv.CSVParser;
 public class PumsDiqube {
   public static class ToDiqubeRowMapper extends Mapper<Object, Text, LongWritable, BytesWritable> {
 
-    private static final String[] HOUSE_HEADER = new String[] { "DIVISION", "PUMA", "REGION", "ST", "ADJHSG", "ADJINC",
+    public static final String[] HOUSE_HEADER = new String[] { "DIVISION", "PUMA", "REGION", "ST", "ADJHSG", "ADJINC",
         "WGTP", "NP", "TYPE", "ACR", "AGS", "BDS", "BLD", "BUS", "CONP", "ELEP", "FS", "FULP", "GASP", "HFL", "INSP",
         "MHP", "MRGI", "MRGP", "MRGT", "MRGX", "RMS", "RNTM", "RNTP", "SMP", "TEL", "TEN", "VACS", "VAL", "VEH", "WATP",
         "YBL", "FES", "FINCP", "FPARC", "GRNTP", "GRPIP", "HHL", "HHT", "HINCP", "HUGCL", "HUPAC", "HUPAOC", "HUPARC",
@@ -64,7 +64,7 @@ public class PumsDiqube {
         "FMRGP", "FMRGTP", "FMRGXP", "FMVP", "FPLMP", "FRMSP", "FRNTMP", "FRNTP", "FSMP", "FSMXHP", "FSMXSP", "FTAXP",
         "FTELP", "FTENP", "FVACSP", "FVALP", "FVEHP", "FWATP", "FYBLP", "WGTPR" }; /* last field is repeated */
 
-    private static final String[] PERSON_HEADER = new String[] { "SPORDER", "PUMA", "ST", "ADJINC", "PWGTP", "AGEP",
+    public static final String[] PERSON_HEADER = new String[] { "SPORDER", "PUMA", "ST", "ADJINC", "PWGTP", "AGEP",
         "CIT", "COW", "ENG", "FER", "GCL", "GCM", "GCR", "INTP", "JWMNP", "JWRIP", "JWTR", "LANX", "MAR", "MIG", "MIL",
         "MLPA", "MLPB", "MLPC", "MLPD", "MLPE", "MLPF", "MLPG", "MLPH", "MLPI", "MLPJ", "MLPK", "NWAB", "NWAV", "NWLA",
         "NWLK", "NWRE", "OIP", "PAP", "REL", "RETP", "SCH", "SCHG", "SCHL", "SEMP", "SEX", "SSIP", "SSP", "WAGP",
@@ -196,6 +196,7 @@ public class PumsDiqube {
     job.setOutputFormatClass(DiqubeOutputFormat.class);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(DiqubeRow.class);
+    job.setNumReduceTasks(24);
 
     for (int i = 0; i < args.length - 1; i++)
       FileInputFormat.addInputPath(job, new Path(args[i]));

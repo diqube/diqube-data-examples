@@ -91,6 +91,15 @@
             <goals>
               <goal>shade</goal>
             </goals>
+            <configuration>
+              <!-- relocate guava as some Hadoop versions seem to have one on the classpath, too, be sure to use our version! -->
+              <relocations>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>org.diqube.com.google</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
           </execution>
         </executions>
       </plugin>
