@@ -78,16 +78,27 @@ I did execute this Map/Reduce successfully on AWS EC2 using the MapR community e
 * Login to each node of the cluster and execute the following commands:
     ```
     wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/8u60-b27/jdk-8u60-linux-x64.tar.gz"
+    
     tar xf jdk-8u60-linux-x64.tar.gz
+    
     sudo mv jdk1.8.0_60/ /opt
+    
     sudo chmod -R 0777 /opt/jdk1.8.0_60/
+    
     cd /usr/java/
+    
     sudo rm latest default
+    
     sudo ln -s /opt/jdk1.8.0_60/ latest
+    
     sudo ln -s /opt/jdk1.8.0_60/ default
+    
     sudo alternatives --install /usr/bin/java java /opt/jdk1.8.0_60/bin/java 2
+    
     sudo sed -i 's/<\/configuration>/<property><name>mapreduce.reduce.java.opts<\/name><value>-Xmx26112m<\/value><\/property><property><name>mapreduce.reduce.memory.mb<\/name><value>26624<\/value><\/property><property><name>mapreduce.job.maps<\/name><value>4<\/value><\/property><\/configuration>/' /opt/mapr/hadoop/hadoop-2.5.1/etc/hadoop/mapred-site.xml
+    
     sudo sed -i 's/<\/configuration>/<property><name>yarn.scheduler.maximum-allocation-mb<\/name><value>28000<\/value><\/property><property><name>yarn.nodemanager.resource.memory-mb<\/name><value>28672<\/value><\/property><\/configuration>/' /opt/mapr/hadoop/hadoop-2.5.1/etc/hadoop/yarn-site.xml
+    
     sudo reboot
     ```
 * Wait until all nodes have restarted and the cluster is fully available again (check by querying HDFS from one node for example or check the MapR UI).
