@@ -28,6 +28,7 @@
     <groupId>org.diqube.dataexamples</groupId>
     <artifactId>diqube-dataexamples</artifactId>
     <version>1-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
   <artifactId>diqube-pums-hadoop</artifactId>
   <packaging>jar</packaging>
