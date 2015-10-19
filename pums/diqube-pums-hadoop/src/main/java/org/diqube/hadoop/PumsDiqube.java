@@ -196,11 +196,12 @@ public class PumsDiqube {
     job.setOutputFormatClass(DiqubeOutputFormat.class);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(DiqubeRow.class);
-    job.setNumReduceTasks(24);
+    job.setNumReduceTasks(8);
 
     for (int i = 0; i < args.length - 1; i++)
       FileInputFormat.addInputPath(job, new Path(args[i]));
     DiqubeOutputFormat.setOutputPath(job, new Path(args[args.length - 1]));
+	DiqubeOutputFormat.setMemoryFlushMb(job, Math.round(4.6 * 1024L));
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 }
