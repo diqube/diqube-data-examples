@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.diqube.data.ColumnType;
+import org.diqube.data.column.ColumnType;
 import org.diqube.util.Pair;
 import org.diqube.util.Triple;
 
