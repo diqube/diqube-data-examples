@@ -27,13 +27,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -76,10 +71,15 @@ public class CommonCrawlDiqube {
   private static final Logger logger = LoggerFactory.getLogger(CommonCrawlDiqube.class);
 
   public static class CommonCrawlMapper extends Mapper<Text, ArchiveReader, IntWritable, BytesWritable> {
+    private CommonCrawlDeriveData derive = null;
+
     @SuppressWarnings("unchecked")
     @Override
     protected void map(Text fileName, ArchiveReader archiveReader, Context ctx)
         throws IOException, InterruptedException {
+      if (derive == null)
+        derive = new CommonCrawlDeriveData();
+
       JsonFactory jsonFactory = new JsonFactory();
       ObjectMapper mapper = new ObjectMapper(jsonFactory);
       for (ArchiveRecord archiveRecord : archiveReader) {
@@ -116,7 +116,7 @@ public class CommonCrawlDiqube {
               .put("WARC-Target-URI", targetUriString);
 
           // derive some data from the original map so querying in diqube gets easier
-          map.put("derived", deriveData(map));
+          map.put("derived", derive.deriveData(map));
 
           DiqubeRow newRow = new DiqubeRow();
           addToRow(newRow.withData(), map);
@@ -142,6 +142,7 @@ public class CommonCrawlDiqube {
 
         if (overallValue instanceof Iterable) {
           for (Object value : (Iterable<Object>) overallValue) {
+            // TODO the JSON seems to only contain String values. Convert manually here.
             if (value == null)
               logger.debug("Ignoring null value of field {}.", fieldName);
             else if (value instanceof String)
@@ -186,79 +187,6 @@ public class CommonCrawlDiqube {
       return origFieldName.replace("-", "_").replace("#", "_").toLowerCase();
     }
 
-    private Map<String, Object> deriveData(Map<String, Object> data) {
-      Map<String, Object> res = new HashMap<>();
-
-      // Parse the string that was returned in Http "Server" response header.
-      String httpServer =
-          (String) resolveValue(data, "Envelope.Payload-Metadata.HTTP-Response-Metadata.Headers.Server");
-
-      if (httpServer != null) {
-        List<Map<String, Object>> foundServerComponents = new ArrayList<>();
-
-        Pattern p = Pattern.compile("[^-_a-zA-Z0-9]*([-_a-zA-Z0-9]+)(/[-a-zA-Z0-9\\.]+)? *(\\(.*?\\))?");
-        Matcher m = p.matcher(httpServer);
-        while (m.find()) {
-          String serverComponent = m.group(1);
-          String componentVersion = null;
-          String componentComment = null;
-          if (m.groupCount() > 1 & m.group(2) != null) {
-            if (m.group(2).startsWith("/"))
-              componentVersion = m.group(2).substring(1);
-            else
-              componentComment = m.group(2).substring(1, m.group(2).length() - 1);
-          }
-          if (m.groupCount() > 2 && m.group(3) != null)
-            if (m.group(3).startsWith("("))
-              componentComment = m.group(3).substring(1, m.group(3).length() - 1);
-
-          Map<String, Object> map = new HashMap<>();
-          map.put("component", serverComponent);
-          if (componentVersion != null)
-            map.put("version", componentVersion);
-          if (componentComment != null)
-            map.put("comment", componentComment);
-          foundServerComponents.add(map);
-        }
-
-        res.put("server_components", foundServerComponents);
-        if (!foundServerComponents.isEmpty()) {
-          // the following denotes the "main server information". According to HTTP spec these are the first in the
-          // Server response header.
-          res.put("server", foundServerComponents.get(0).get("component"));
-          res.put("server_version", foundServerComponents.get(0).get("version"));
-          res.put("server_comment", foundServerComponents.get(0).get("comment"));
-        } else {
-          res.put("server", httpServer);
-          res.put("server_version", "");
-          res.put("server_comment", "");
-        }
-      } else {
-        res.put("server_components", Arrays.asList());
-        res.put("server", "");
-        res.put("server_version", "");
-        res.put("server_comment", "");
-      }
-
-      return res;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Object resolveValue(Map<String, Object> data, String field) {
-      Map<String, Object> curData = data;
-      for (String part : field.split("\\.")) {
-        if (!curData.containsKey(part))
-          return null;
-
-        if (curData.get(part) instanceof Map) {
-          curData = (Map<String, Object>) curData.get(part);
-          continue;
-        } else {
-          return curData.get(part);
-        }
-      }
-      return null;
-    }
   }
 
   public static class CommonCrawlReducer extends Reducer<IntWritable, BytesWritable, NullWritable, DiqubeRow> {
@@ -298,7 +226,7 @@ public class CommonCrawlDiqube {
     for (int i = 0; i < args.length - 1; i++)
       FileInputFormat.addInputPath(job, new Path(args[i]));
     DiqubeOutputFormat.setOutputPath(job, new Path(args[args.length - 1]));
-    DiqubeOutputFormat.setMemoryFlushMb(job, Math.round(4.6 * 1024L));
+    DiqubeOutputFormat.setMemoryFlushMb(job, Math.round(12 * 1024L));
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 }

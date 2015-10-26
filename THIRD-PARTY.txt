@@ -16,7 +16,6 @@ diqube source code.
         * Commons Lang (commons-lang:commons-lang:2.5 - http://commons.apache.org/lang/)
         * Commons Math (org.apache.commons:commons-math3:3.1.1 - http://commons.apache.org/math/)
         * Digester (commons-digester:commons-digester:1.8 - http://jakarta.apache.org/commons/digester/)
-        * FindBugs-jsr305 (com.google.code.findbugs:jsr305:3.0.0 - http://findbugs.sourceforge.net/)
         * Guava: Google Core Libraries for Java (com.google.guava:guava:18.0 - http://code.google.com/p/guava-libraries/guava)
         * HttpClient (org.apache.httpcomponents:httpclient:4.2.5 - http://hc.apache.org/httpcomponents-client)
         * HttpCore (org.apache.httpcomponents:httpcore:4.2.4 - http://hc.apache.org/httpcomponents-core-ga)
