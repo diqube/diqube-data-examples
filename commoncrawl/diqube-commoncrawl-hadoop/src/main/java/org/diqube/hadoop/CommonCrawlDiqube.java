@@ -27,8 +27,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -71,6 +74,22 @@ public class CommonCrawlDiqube {
   private static final Logger logger = LoggerFactory.getLogger(CommonCrawlDiqube.class);
 
   public static class CommonCrawlMapper extends Mapper<Text, ArchiveReader, IntWritable, BytesWritable> {
+    /**
+     * Field names in the input JSON format which will be converted to LONGs, although they are presented as Strings in
+     * the input.
+     * 
+     * It is unfortunate, but the commoncrawl JSON seems to provide only strings as input, but some fields are clearly
+     * numbers, we therefore use this list to convert the values of those fields.
+     */
+    private static final Set<String> LONG_FIELDS = new HashSet<>(Arrays.asList( //
+        "Container.Gzip-Metadata.Footer-Length", "Container.Gzip-Metadata.Deflate-Length",
+        "Container.Gzip-Metadata.Header-Length", "Container.Gzip-Metadata.Inflated-Length", "Container.Offset", //
+        "Envelope.WARC-Header-Length", "Envelope.Actual-Content-Length", "Envelope.WARC-Header-Metadata.Content-Length",
+        "Envelope.Payload-Metadata.Trailing-Slop-Length",
+        "Envelope.Payload-Metadata.HTTP-Response-Metadata.Headers-Length",
+        "Envelope.Payload-Metadata.HTTP-Response-Metadata.Entity-Length",
+        "Envelope.Payload-Metadata.HTTP-Response-Metadata.Entity-Trailing-Slop-Bytes"));
+
     private CommonCrawlDeriveData derive = null;
 
     @SuppressWarnings("unchecked")
@@ -119,7 +138,7 @@ public class CommonCrawlDiqube {
           map.put("derived", derive.deriveData(map));
 
           DiqubeRow newRow = new DiqubeRow();
-          addToRow(newRow.withData(), map);
+          addToRow(newRow.withData(), "", map);
 
           baos = new ByteArrayOutputStream();
           try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
@@ -134,22 +153,31 @@ public class CommonCrawlDiqube {
     }
 
     @SuppressWarnings("unchecked")
-    private void addToRow(DiqubeRow.DiqubeData res, Map<String, Object> values) throws IOException {
+    private void addToRow(DiqubeRow.DiqubeData res, String parentFieldName, Map<String, Object> values)
+        throws IOException {
       for (String origFieldName : values.keySet()) {
         Object overallValue = values.get(origFieldName);
+
+        String fullOrigFieldName;
+        if ("".equals(parentFieldName))
+          fullOrigFieldName = origFieldName;
+        else
+          fullOrigFieldName = parentFieldName + "." + origFieldName;
 
         String fieldName = cleanFieldName(origFieldName);
 
         if (overallValue instanceof Iterable) {
           for (Object value : (Iterable<Object>) overallValue) {
-            // TODO the JSON seems to only contain String values. Convert manually here.
+            if (LONG_FIELDS.contains(fullOrigFieldName) && (value instanceof String))
+              value = Long.parseLong((String) value);
+
             if (value == null)
               logger.debug("Ignoring null value of field {}.", fieldName);
             else if (value instanceof String)
               res.addRepeatedData(fieldName, (String) value);
-            else if (value instanceof Map && !((Map<String, Object>) value).isEmpty())
-              addToRow(res.addNewRepeatedDiqubeData(fieldName), (Map<String, Object>) value);
-            else if (value instanceof Number) {
+            else if (value instanceof Map && !((Map<String, Object>) value).isEmpty()) {
+              addToRow(res.addNewRepeatedDiqubeData(fieldName), fullOrigFieldName, (Map<String, Object>) value);
+            } else if (value instanceof Number) {
               if (value instanceof Integer || value instanceof Long)
                 res.addRepeatedData(fieldName, ((Number) value).longValue());
               else if (value instanceof Float || value instanceof Double)
@@ -162,13 +190,15 @@ public class CommonCrawlDiqube {
           }
         } else {
           Object value = overallValue;
+          if (LONG_FIELDS.contains(fullOrigFieldName) && (value instanceof String))
+            value = Long.parseLong((String) value);
 
           if (value == null)
             logger.debug("Ignoring null value of field {}.", fieldName);
           else if (value instanceof String)
             res.withData(fieldName, (String) value);
           else if (value instanceof Map && !((Map<String, Object>) value).isEmpty())
-            addToRow(res.withNewDiqubeData(fieldName), (Map<String, Object>) value);
+            addToRow(res.withNewDiqubeData(fieldName), fullOrigFieldName, (Map<String, Object>) value);
           else if (value instanceof Number) {
             if (value instanceof Integer || value instanceof Long)
               res.withData(fieldName, ((Number) value).longValue());
