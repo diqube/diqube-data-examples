@@ -27,7 +27,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,7 +38,6 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -45,6 +46,9 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
+import org.diqube.data.column.ColumnPage;
+import org.diqube.data.table.TableShard;
+import org.diqube.loader.columnshard.ColumnShardBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +65,7 @@ import com.google.common.io.ByteStreams;
  * 
  * <p>
  * Note that the resulting diqube table will have the same layout as the JSON in the wat files, but field names will be
- * adjustedslightly to be compatible with diqube (see #cleanFieldName(...)).
+ * adjusted slightly to be compatible with diqube (see #cleanFieldName(...)).
  * 
  * <p>
  * In addition to that, there will be a few fields added under "derived" which are calculated from the raw data, to make
@@ -73,7 +77,17 @@ import com.google.common.io.ByteStreams;
 public class CommonCrawlDiqube {
   private static final Logger logger = LoggerFactory.getLogger(CommonCrawlDiqube.class);
 
-  public static class CommonCrawlMapper extends Mapper<Text, ArchiveReader, IntWritable, BytesWritable> {
+  /**
+   * set to <code>true</code> to not include a full list of links in .diqube file. This is meaningful if the MapReduce
+   * is executed on machines with not that much main memory. The list of links could be pretty large, which would lead
+   * to a lot of columns being created, which means that the memory limit might be reached after only a few rows, not
+   * even filling a full {@link ColumnPage} of a new {@link TableShard} (see {@link ColumnShardBuilder#PROPOSAL_ROWS}).
+   * 
+   * Use <code>false</code> to include all links.
+   */
+  private static final boolean FILTER_FULL_LINK_LIST = true;
+
+  public static class CommonCrawlMapper extends Mapper<Text, ArchiveReader, BytesWritable, BytesWritable> {
     /**
      * Field names in the input JSON format which will be converted to LONGs, although they are presented as Strings in
      * the input.
@@ -138,6 +152,14 @@ public class CommonCrawlDiqube {
           map.put("derived", derive.deriveData(map));
 
           DiqubeRow newRow = new DiqubeRow();
+
+          if (FILTER_FULL_LINK_LIST)
+            CommonCrawlUtil.<Collection<?>, Object> executeOnValue(map,
+                "Envelope.Payload-Metadata.HTTP-Response-Metadata.HTML-Metadata.Links", lst -> {
+                  lst.clear();
+                  return null;
+                });
+
           addToRow(newRow.withData(), "", map);
 
           baos = new ByteArrayOutputStream();
@@ -145,9 +167,22 @@ public class CommonCrawlDiqube {
             oos.writeObject(newRow);
           }
 
-          // write serialized DiqubeRow to output. Use the hashCode of the values map as key to somewhat-well-distribute
-          // the entries randomly.
-          ctx.write(new IntWritable(map.hashCode()), new BytesWritable(baos.toByteArray()));
+          // We want to (1) distribute all rows randomly and (2) want to sort the rows of a specific Reducer, so that it
+          // creates ColumnPages that most probably can be skipped on "usual queries".
+          // For (1): We use the HashPartitionor, so we need to take care that simply each row has a different key, so
+          // the hash will be different and the rows will be distributed somewhat randomly.
+          // For (2): "Usual queries" might query only rows that are in a specific "bucket" and we simply guess here to
+          // build the buckets according to specific field values of the row.
+          String bucketId = //
+              ((String) CommonCrawlUtil.resolveValue(map, "derived." + CommonCrawlDeriveData.TLD)) + ":" + //
+                  ((String) CommonCrawlUtil.resolveValue(map, "derived." + CommonCrawlDeriveData.SERVER)) + ":" + //
+                  ((String) CommonCrawlUtil.resolveValue(map, "derived." + CommonCrawlDeriveData.IP_COUNTRY)) + ":" //
+                  ;
+
+          // ensure that rows are distributed "randomly", but sorting on single reducers is by bucketId.
+          String identifier = bucketId + ":" + map.hashCode();
+          ctx.write(new BytesWritable(identifier.getBytes(Charset.forName("UTF-8"))),
+              new BytesWritable(baos.toByteArray()));
         }
       }
     }
@@ -219,9 +254,9 @@ public class CommonCrawlDiqube {
 
   }
 
-  public static class CommonCrawlReducer extends Reducer<IntWritable, BytesWritable, NullWritable, DiqubeRow> {
+  public static class CommonCrawlReducer extends Reducer<BytesWritable, BytesWritable, NullWritable, DiqubeRow> {
     @Override
-    protected void reduce(IntWritable hashCode, Iterable<BytesWritable> rowsBytes, Context ctx)
+    protected void reduce(BytesWritable rowIdentifier, Iterable<BytesWritable> rowsBytes, Context ctx)
         throws IOException, InterruptedException {
       for (BytesWritable rowBytes : rowsBytes) {
         try (ObjectInputStream is = new ObjectInputStream(new ByteArrayInputStream(rowBytes.getBytes()))) {
@@ -233,6 +268,7 @@ public class CommonCrawlDiqube {
         }
       }
     }
+
   }
 
   public static void main(String[] args) throws Exception {
@@ -241,7 +277,7 @@ public class CommonCrawlDiqube {
     job.setJarByClass(CommonCrawlDiqube.class);
 
     job.setMapperClass(CommonCrawlMapper.class);
-    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputKeyClass(BytesWritable.class);
     job.setMapOutputValueClass(BytesWritable.class);
 
     job.setReducerClass(CommonCrawlReducer.class);
