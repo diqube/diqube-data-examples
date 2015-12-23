@@ -32,3 +32,38 @@ diqube-commoncrawl-hadoop, you need to manually download the following files and
 ##Hadoop settings##
 You might want to check the documentation of the [PUMS example](../pums/) to find out what settings might be
 helpful to change.
+
+
+##Result fields of table##
+
+The following is a list of fields that might be of interest in the resulting diqube table. As the fields are derived 
+from the fields of the original wat files, see here for more fields: https://gist.github.com/Smerity/e750f0ef0ab9aa366558#file-bbc-pretty-wat
+
+###Fields derived by the MapReduce###
+
+* `derived.ip_city` = "City" information of the IP of a server
+* `derived.ip_country` = "Country" information of the IP of a server
+* `derived.ip_asn` = "ASN" information of the IP of a server
+* `derived.tld` = The top level domain of the requested URL
+* `derived.domain` = The domain (= second level domain) of the requested URL or the full IP address, if there was no DNS name
+* `derived.subdomain` = The third level domain or the requested URL
+* `dervied.domain_scheme` = The scheme of the requested URL
+* `derived.cache_seconds` = The number of seconds the server asked commoncrawl to cache the website. Derived from Cache-Control "max-age" and/or the "Expires" HTTP header.
+* `derived.server_components` = Array of objects with information about each component returned by the server in the "Server" HTTP header:
+  * `component` = name of the component
+  * `version` = version of the component
+  * `comment` = comment of the component
+* `derived.server` = Name of the first server_component, usually the name of the server software serving the website
+* `derived.server_version` = Version of the first server_component 
+* `derived.server_comment` = Comment of the first server_component
+* `derived.top_link_domains` = Array of objects with information about the links that the retrieved document had
+  * `domain` = The (second level) domain that was linked to
+  * `count` = The number of times the retrieved document linked to the domain
+
+###Fields provided by commoncrawl###
+
+* `envelope.warc_header_metadata.warc_ip_address` = IP address of the server from which the document was retrieved
+* `envelope.warc_header_metadata.warc_target_uri` = Full URL of the retrieved document
+* `envelope.payload_metadata.http_response_metadata.entity_length` = Size of the document
+* `envelope.payload_metadata.http_response_metadata.response_message.version` = HTTP version of the server
+* `envelope.payload_metadata.http_response_metadata.headers.content_type` = "Content-Type" header reported by the server
