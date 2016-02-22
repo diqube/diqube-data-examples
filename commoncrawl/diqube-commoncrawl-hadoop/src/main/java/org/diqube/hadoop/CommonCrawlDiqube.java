@@ -249,7 +249,7 @@ public class CommonCrawlDiqube {
     }
 
     private String cleanFieldName(String origFieldName) {
-      return origFieldName.replace("-", "_").replace("#", "_").toLowerCase();
+      return origFieldName.replace("-", "_").replace(".", "_").replace("#", "_").toLowerCase();
     }
 
   }
